@@ -1,0 +1,19 @@
+[package]
+name = "domainscan"
+version = "0.1.0"
+edition = "2021"
+authors = ["shellrow <shellrow@protonmail.com>"]
+description = "Cross-platform domain scan library"
+repository = "https://github.com/shellrow/domainscan"
+readme = "README.md"
+keywords = ["domain","dns","security","scan"]
+categories = ["network-programming"]
+license = "MIT"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["blocking", "json", "socks"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = {version = "1.0", features = ["time"] }
+futures = {version = "0.3.21", features = ["executor", "thread-pool"]}
+trust-dns-resolver = "0.22.0"
