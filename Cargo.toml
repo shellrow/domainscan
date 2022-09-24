@@ -17,3 +17,11 @@ serde_json = "1.0"
 tokio = {version = "1.0", features = ["time"] }
 futures = {version = "0.3.21", features = ["executor", "thread-pool"]}
 trust-dns-resolver = "0.22.0"
+
+[[example]]
+name = "scan_subdomain"
+path = "examples/scan_subdomain.rs"
+
+[[example]]
+name = "scan_subdomain_passive"
+path = "examples/scan_subdomain_passive.rs"

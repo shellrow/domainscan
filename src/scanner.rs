@@ -4,10 +4,11 @@ use std::sync::{Mutex, Arc};
 use std::sync::mpsc::{channel ,Sender, Receiver};
 use futures::{stream, StreamExt};
 use tokio::time::{timeout};
-use trust_dns_resolver::Resolver;
+use trust_dns_resolver::AsyncResolver;
 use trust_dns_resolver::config::*;
 use reqwest::Url;
-use crate::model::{Domain, ScanStatus, DomainScanResult, CertEntry};
+use crate::model::{Domain, CertEntry};
+use crate::result::{ScanStatus, DomainScanResult};
 use crate::config::{URL_CRT, DEFAULT_USER_AGENT};
 
 /// Structure for domain scan  
@@ -54,9 +55,20 @@ impl DomainScanner {
     pub fn add_word(&mut self, word: String) {
         self.word_list.push(word);
     }
+    /// Set word-list 
+    pub fn set_word_list(&mut self, word_list: Vec<&str>) {
+        self.word_list.clear();
+        for word in word_list {
+            self.word_list.push(word.to_string())
+        }
+    }
     /// Set scan timeout  
     pub fn set_timeout(&mut self, timeout: Duration){
         self.timeout = timeout;
+    }
+    /// Set active/passive scan
+    pub fn set_passive(&mut self, passive: bool) {
+        self.passive = passive;
     }
     /// Run scan with current settings. 
     /// 
@@ -96,8 +108,8 @@ impl DomainScanner {
 
 async fn resolve_domain(domain: String) -> Vec<IpAddr> {
     let mut ips: Vec<IpAddr> = vec![];
-    let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default()).unwrap();
-    match resolver.lookup_ip(domain) {
+    let resolver = AsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()).unwrap();
+    match resolver.lookup_ip(domain).await {
         Ok(lip) => {
             for ip in lip.iter() {
                 ips.push(ip);
@@ -130,7 +142,7 @@ async fn scan_subdomain(base_domain: String, word_list: Vec<String>, ptx: &Arc<M
     for word in word_list {
         target_domains.push(format!("{}.{}", word, base_domain));
     }
-    let r = stream::iter(target_domains).map(|domain| {
+    let results = stream::iter(target_domains).map(|domain| {
         async move {
             let ips: Vec<IpAddr> = resolve_domain(domain.clone()).await;
             let d = Domain {
@@ -149,7 +161,7 @@ async fn scan_subdomain(base_domain: String, word_list: Vec<String>, ptx: &Arc<M
             d
         }
     }).buffer_unordered(100);
-    r.for_each(|domain| async {
+    results.for_each(|domain| async {
         if domain.ips.len() > 0 {
             scan_results.lock().unwrap().push(domain);
         }
@@ -160,8 +172,9 @@ async fn scan_subdomain(base_domain: String, word_list: Vec<String>, ptx: &Arc<M
     result
 }
 
-async fn scan_subdomain_passive(base_domain: String, _ptx: &Arc<Mutex<Sender<String>>>) -> Vec<Domain>  {
+async fn scan_subdomain_passive(base_domain: String, ptx: &Arc<Mutex<Sender<String>>>) -> Vec<Domain>  {
     let mut result: Vec<Domain> = vec![];
+    let scan_results: Arc<Mutex<Vec<Domain>>> = Arc::new(Mutex::new(vec![]));
     let mut certs: Vec<CertEntry> = vec![];
     //"https://crt.sh/?dNSName=example.com&output=json"
     let url = match Url::parse_with_params(URL_CRT, &[("dNSName", base_domain.clone().as_str()), ("output", "json")]){
@@ -201,18 +214,39 @@ async fn scan_subdomain_passive(base_domain: String, _ptx: &Arc<Mutex<Sender<Str
         },
         Err(_) => {},
     }
+    let mut target_domains: Vec<String> = vec![];
     for cert in certs {
         let domain_name: String = extract_domain(cert.common_name);
-        if is_subdomain(domain_name.clone(), base_domain.clone()) {
-            let ips: Vec<IpAddr> = resolve_domain(domain_name.clone()).await;
-            if ips.len() > 0 {
-                let domain = Domain {
-                    domain_name: domain_name,
-                    ips: ips,
-                };
-                result.push(domain);
-            }
+        if is_subdomain(domain_name.clone(), base_domain.clone()) && !target_domains.contains(&domain_name) {
+            target_domains.push(domain_name);
         }
+    }
+    let results = stream::iter(target_domains).map(|domain| {
+        async move {
+            let ips: Vec<IpAddr> = resolve_domain(domain.clone()).await;
+            let d = Domain {
+                domain_name: domain.clone(),
+                ips: ips,
+            };
+            match ptx.lock() {
+                Ok(lr) => {
+                    match lr.send(domain) {
+                        Ok(_) => {},
+                        Err(_) => {},
+                    }
+                },
+                Err(_) => {},
+            }
+            d
+        }
+    }).buffer_unordered(100);
+    results.for_each(|domain| async {
+        if domain.ips.len() > 0 {
+            scan_results.lock().unwrap().push(domain);
+        }
+    }).await;
+    for domain in scan_results.lock().unwrap().iter() {
+        result.push(domain.to_owned());
     }
     result
 }
