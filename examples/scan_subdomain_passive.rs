@@ -1,11 +1,9 @@
 use domainscan::scanner::DomainScanner;
 use domainscan::result::ScanStatus;
-use tokio;
 use tokio::runtime::Runtime;
 use std::time::Duration;
 use std::thread;
 
-//#[tokio::main]
 fn main() {
     let mut domain_scanner = match DomainScanner::new(){
         Ok(scanner) => (scanner),
@@ -25,7 +23,7 @@ fn main() {
     });
     // Print progress
     while let Ok(_domain) = rx.lock().unwrap().recv() {
-        //println!("Check: {}", domain);
+        //println!("Debug: {}", domain);
     }
     let result = handle.join().unwrap();
     print!("Status: ");
