@@ -1,12 +1,10 @@
 use domainscan::scanner::DomainScanner;
 use domainscan::result::ScanStatus;
-use tokio;
 use tokio::runtime::Runtime;
 //use std::fs::read_to_string;
 use std::time::Duration;
 use std::thread;
 
-//#[tokio::main]
 fn main() {
     let mut domain_scanner = match DomainScanner::new(){
         Ok(scanner) => (scanner),
@@ -21,7 +19,7 @@ fn main() {
     };
     let word_list: Vec<&str> = text.trim().split("\n").collect();
     domain_scanner.set_word_list(word_list); */
-    //TOP20
+    // TOP20
     domain_scanner.set_word_list(vec!["www","mail","ftp","localhost","webmail","smtp","webdisk","pop","cpanel","whm","ns1","ns2","autodiscover","autoconfig","ns","test","m","blog","dev","www2"]);
     domain_scanner.set_timeout(Duration::from_millis(10000));
     let rx = domain_scanner.get_progress_receiver();
@@ -34,7 +32,7 @@ fn main() {
     });
     // Print progress
     while let Ok(_domain) = rx.lock().unwrap().recv() {
-        //println!("Check: {}", domain);
+        //println!("Debug: {}", domain);
     }
     let result = handle.join().unwrap();
     print!("Status: ");
@@ -52,4 +50,3 @@ fn main() {
     }
     println!("Scan Time: {:?}", result.scan_time);
 }
-
