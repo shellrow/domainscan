@@ -1,2 +1,2 @@
 # domainscan
-(Sub)Domain scan library. Written in Rust.
+Cross-platform (Sub)Domain scan library.
