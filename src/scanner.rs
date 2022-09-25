@@ -66,7 +66,7 @@ impl DomainScanner {
     pub fn set_timeout(&mut self, timeout: Duration){
         self.timeout = timeout;
     }
-    /// Set active/passive scan
+    /// Set active/passive scan (default is active)
     pub fn set_passive(&mut self, passive: bool) {
         self.passive = passive;
     }
@@ -132,7 +132,7 @@ fn extract_domain(target: String) -> String {
 }
 
 fn is_subdomain(domain: String, apex_domain: String) -> bool {
-    domain.contains(&apex_domain) && domain.len() > apex_domain.len()
+    domain.contains(&apex_domain) && domain.ends_with(&apex_domain) && domain.len() > apex_domain.len() 
 }
 
 async fn scan_subdomain(base_domain: String, word_list: Vec<String>, ptx: &Arc<Mutex<Sender<String>>>) -> Vec<Domain> {
@@ -219,6 +219,13 @@ async fn scan_subdomain_passive(base_domain: String, ptx: &Arc<Mutex<Sender<Stri
         let domain_name: String = extract_domain(cert.common_name);
         if is_subdomain(domain_name.clone(), base_domain.clone()) && !target_domains.contains(&domain_name) {
             target_domains.push(domain_name);
+        }
+        let name_values: Vec<&str> = cert.name_value.trim().split("\n").collect();
+        for value in name_values {
+            let name: String = extract_domain(value.to_string());
+            if is_subdomain(name.clone(), base_domain.clone()) && !target_domains.contains(&name) {
+                target_domains.push(name);
+            }
         }
     }
     let results = stream::iter(target_domains).map(|domain| {
