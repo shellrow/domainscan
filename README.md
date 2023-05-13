@@ -4,13 +4,13 @@ Cross-platform (Sub)Domain scan library.
 ## Features
 - Subdomain Scan
     - Active
-    - Passive
+    - Passive (`--feature passive`)
 
 ## Usage
 Add `domainscan` to your dependencies
 ```toml
 [dependencies]
-domainscan = "0.1.0"
+domainscan = "0.2.0"
 ```
 
 ## Example (Active scan)
