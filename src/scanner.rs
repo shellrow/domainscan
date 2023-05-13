@@ -6,9 +6,14 @@ use futures::{stream, StreamExt};
 use tokio::time::{timeout};
 use trust_dns_resolver::AsyncResolver;
 use trust_dns_resolver::config::*;
-use reqwest::Url;
-use crate::model::{Domain, CertEntry};
+use crate::model::Domain;
 use crate::result::{ScanStatus, DomainScanResult};
+
+#[cfg(feature = "passive")]
+use reqwest::Url;
+#[cfg(feature = "passive")]
+use crate::model::CertEntry;
+#[cfg(feature = "passive")]
 use crate::config::{URL_CRT, DEFAULT_USER_AGENT};
 
 /// Structure for domain scan  
@@ -70,16 +75,40 @@ impl DomainScanner {
     pub fn set_passive(&mut self, passive: bool) {
         self.passive = passive;
     }
+    async fn scan_domain(&self) -> Result<Vec<Domain>, ()> {
+        if self.passive {
+            #[cfg(feature = "passive")]
+            match timeout(self.timeout, scan_subdomain_passive(self.base_domain.clone(), &self.tx)).await {
+                Ok(domains) => {
+                    return Ok(domains);
+                },
+                Err(_) => {
+                    return Err(());
+                },
+            }
+            #[cfg(not(feature = "passive"))]
+            return Err(());
+        }else{
+            match timeout(self.timeout, scan_subdomain(self.base_domain.clone(), self.word_list.clone(), &self.tx)).await {
+                Ok(domains) => {
+                    return Ok(domains);
+                },
+                Err(_) => {
+                    return Err(());
+                },
+            }
+        }
+    }
     /// Run scan with current settings. 
     /// 
     /// Results are stored in DomainScanner::scan_result
     pub async fn run_scan(&mut self){
+        if self.passive && cfg!(not(feature="passive")) {
+            self.scan_result.scan_status = ScanStatus::Error;
+            return; 
+        }
         let start_time = Instant::now();
-        let res = if self.passive {
-            timeout(self.timeout, scan_subdomain_passive(self.base_domain.clone(), &self.tx)).await
-        }else{
-            timeout(self.timeout, scan_subdomain(self.base_domain.clone(), self.word_list.clone(), &self.tx)).await
-        };
+        let res = self.scan_domain().await;
         match res {
             Ok(domains) => {
                 self.scan_result.domains = domains;
@@ -120,6 +149,7 @@ async fn resolve_domain(domain: String) -> Vec<IpAddr> {
     ips
 }
 
+#[cfg(feature = "passive")]
 fn extract_domain(target: String) -> String {
     let mut domain_name: String = target;
     match domain_name.strip_prefix("*.") {
@@ -131,6 +161,7 @@ fn extract_domain(target: String) -> String {
     domain_name
 }
 
+#[cfg(feature = "passive")]
 fn is_subdomain(domain: String, apex_domain: String) -> bool {
     domain.contains(&apex_domain) && domain.ends_with(&apex_domain) && domain.len() > apex_domain.len() 
 }
@@ -172,6 +203,7 @@ async fn scan_subdomain(base_domain: String, word_list: Vec<String>, ptx: &Arc<M
     result
 }
 
+#[cfg(feature = "passive")]
 async fn scan_subdomain_passive(base_domain: String, ptx: &Arc<Mutex<Sender<String>>>) -> Vec<Domain>  {
     let mut result: Vec<Domain> = vec![];
     let scan_results: Arc<Mutex<Vec<Domain>>> = Arc::new(Mutex::new(vec![]));

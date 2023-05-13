@@ -7,7 +7,7 @@ use std::thread;
 
 fn main() {
     let mut domain_scanner = match DomainScanner::new(){
-        Ok(scanner) => (scanner),
+        Ok(scanner) => scanner,
         Err(e) => panic!("Error creating scanner: {}", e),
     };
     let apex_domain = String::from("google.com");

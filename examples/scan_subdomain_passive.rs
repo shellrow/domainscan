@@ -6,7 +6,7 @@ use std::thread;
 
 fn main() {
     let mut domain_scanner = match DomainScanner::new(){
-        Ok(scanner) => (scanner),
+        Ok(scanner) => scanner,
         Err(e) => panic!("Error creating scanner: {}", e),
     };
     domain_scanner.set_passive(true);
