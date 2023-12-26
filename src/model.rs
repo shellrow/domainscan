@@ -1,6 +1,6 @@
-use std::net::IpAddr;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

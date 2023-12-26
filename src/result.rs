@@ -1,5 +1,5 @@
-use std::time::Duration;
 use crate::model::Domain;
+use std::time::Duration;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -18,8 +18,8 @@ pub enum ScanStatus {
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DomainScanResult {
-    /// HashMap of domain. 
-    /// 
+    /// HashMap of domain.
+    ///
     /// (Domain, IP Addresses)
     pub domains: Vec<Domain>,
     /// Time from start to end of scan.  
@@ -31,7 +31,7 @@ pub struct DomainScanResult {
 impl DomainScanResult {
     pub fn new() -> DomainScanResult {
         DomainScanResult {
-            domains: vec![], 
+            domains: vec![],
             scan_time: Duration::from_millis(0),
             scan_status: ScanStatus::Ready,
         }

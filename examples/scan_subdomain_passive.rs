@@ -1,11 +1,11 @@
-use domainscan::scanner::DomainScanner;
 use domainscan::result::ScanStatus;
-use tokio::runtime::Runtime;
-use std::time::Duration;
+use domainscan::scanner::DomainScanner;
 use std::thread;
+use std::time::Duration;
+use tokio::runtime::Runtime;
 
 fn main() {
-    let mut domain_scanner = match DomainScanner::new(){
+    let mut domain_scanner = match DomainScanner::new() {
         Ok(scanner) => scanner,
         Err(e) => panic!("Error creating scanner: {}", e),
     };
@@ -15,12 +15,8 @@ fn main() {
     domain_scanner.set_timeout(Duration::from_millis(30000));
     let rx = domain_scanner.get_progress_receiver();
     let rt = Runtime::new().unwrap();
-    // Run scan 
-    let handle = thread::spawn(move|| {
-        rt.block_on(async {
-            domain_scanner.scan().await
-        })
-    });
+    // Run scan
+    let handle = thread::spawn(move || rt.block_on(async { domain_scanner.scan().await }));
     // Print progress
     while let Ok(_domain) = rx.lock().unwrap().recv() {
         //println!("Debug: {}", domain);
@@ -28,14 +24,20 @@ fn main() {
     let result = handle.join().unwrap();
     print!("Status: ");
     match result.scan_status {
-        ScanStatus::Done => {println!("Done")},
-        ScanStatus::Timeout => {println!("Timed out")},
-        _ => {println!("Error")},
+        ScanStatus::Done => {
+            println!("Done")
+        }
+        ScanStatus::Timeout => {
+            println!("Timed out")
+        }
+        _ => {
+            println!("Error")
+        }
     }
     println!("Domain Scan Result:");
     for domain in result.domains {
         println!("{}", domain.domain_name);
-        for ip in domain.ips{
+        for ip in domain.ips {
             println!("    {}", ip);
         }
     }
