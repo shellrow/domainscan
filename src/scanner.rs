@@ -11,8 +11,9 @@ use tokio::time::timeout;
 use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use hickory_resolver::AsyncResolver;
 
+use crate::config::DEFAULT_USER_AGENT_FIREFOX;
 #[cfg(feature = "passive")]
-use crate::config::{DEFAULT_USER_AGENT, URL_CRT};
+use crate::config::URL_CRT;
 #[cfg(feature = "passive")]
 use crate::model::CertEntry;
 #[cfg(feature = "passive")]
@@ -41,6 +42,8 @@ pub struct DomainScanner {
     rx: Arc<Mutex<Receiver<String>>>,
     /// Run passive scan
     pub passive: bool,
+    /// User-Agent for passive scan
+    user_agent: String,
 }
 
 impl DomainScanner {
@@ -57,6 +60,7 @@ impl DomainScanner {
             tx: Arc::new(Mutex::new(tx)),
             rx: Arc::new(Mutex::new(rx)),
             passive: false,
+            user_agent: DEFAULT_USER_AGENT_FIREFOX.to_string(),
         };
         Ok(domain_scanner)
     }
@@ -83,6 +87,10 @@ impl DomainScanner {
     pub fn set_passive(&mut self, passive: bool) {
         self.passive = passive;
     }
+    /// Set user-agent for passive scan
+    pub fn set_user_agent(&mut self, user_agent: String) {
+        self.user_agent = user_agent;
+    }
     async fn scan_domain(&self) -> Result<Vec<Domain>, ()> {
         if self.passive {
             #[cfg(feature = "passive")]
@@ -93,6 +101,7 @@ impl DomainScanner {
                     &self.tx,
                     self.resolve_timeout,
                     self.concurrent_limit,
+                    self.user_agent.clone(),
                 ),
             )
             .await
@@ -275,6 +284,7 @@ async fn scan_subdomain_passive(
     ptx: &Arc<Mutex<Sender<String>>>,
     resolve_timeout: Duration,
     concurrent_limit: usize,
+    user_agent: String,
 ) -> Vec<Domain> {
     let mut result: Vec<Domain> = vec![];
     let scan_results: Arc<Mutex<Vec<Domain>>> = Arc::new(Mutex::new(vec![]));
@@ -299,7 +309,7 @@ async fn scan_subdomain_passive(
         .expect("failed to build HTTP reqest client");
     let res = client
         .get(url)
-        .header(reqwest::header::USER_AGENT, DEFAULT_USER_AGENT)
+        .header(reqwest::header::USER_AGENT, user_agent)
         .send()
         .await;
     match res {
