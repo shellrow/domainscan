@@ -1,8 +1,8 @@
 [package]
 name = "domainscan"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-authors = ["shellrow <shellrow@protonmail.com>"]
+authors = ["shellrow <shellrow@intsigma.com>"]
 description = "Cross-platform domain scan library"
 repository = "https://github.com/shellrow/domainscan"
 readme = "README.md"
